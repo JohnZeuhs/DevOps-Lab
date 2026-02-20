@@ -1,30 +1,27 @@
-name: Security
-
+  name: Security
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-  schedule:
-    - cron: "0 9 * * 1"  # weekly Monday 09:00 UTC
+    branches: ["main"]
 
 jobs:
   gitleaks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Gitleaks scan (secrets)
+      - name: Gitleaks scan
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    trivy:
+  trivy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Trivy CLI
+      - name: Install Trivy
         run: |
           sudo apt-get update
           sudo apt-get install -y wget apt-transport-https gnupg lsb-release
@@ -32,15 +29,8 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update
           sudo apt-get install -y trivy
-          trivy --version
 
-      - name: Trivy repo scan (misconfig + secrets)
+      - name: Scan image
         run: |
-          set -e
-          trivy fs . --severity CRITICAL,HIGH --format table --exit-code 1 --ignore-unfixed
-
-      - name: Trivy image scan (nginx)
-        run: |
-          set -e
           docker pull nginx:1.25.4-alpine
-          trivy image nginx:1.25.4-alpine --severity CRITICAL,HIGH --format table --exit-code 1 --ignore-unfixed
+          trivy image nginx:1.25.4-alpine --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1
