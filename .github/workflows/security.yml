@@ -29,9 +29,19 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update
           sudo apt-get install -y trivy
-          trivy --version
 
-      - name: Scan image
+      - name: Scan image and print counts
         run: |
           docker pull nginx:1.25.4-alpine
-          trivy image nginx:1.25.4-alpine --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1
+          trivy image nginx:1.25.4-alpine --severity CRITICAL,HIGH --ignore-unfixed --format json > trivy.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("trivy.json"))
+          crit=high=0
+          for r in d.get("Results",[]):
+            for v in (r.get("Vulnerabilities") or []):
+              if v.get("Severity")=="CRITICAL": crit+=1
+              if v.get("Severity")=="HIGH": high+=1
+          print(f"Trivy summary: CRITICAL={crit} HIGH={high}")
+          raise SystemExit(1 if (crit>0 or high>0) else 0)
+          PY
